@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migration.local/schemas/assessment.schema.json",
+  "title": "Assessment",
+  "type": "object",
+  "required": ["reportId", "scores", "riskFlags", "laneRecommendation"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "scores": {
+      "type": "object",
+      "required": ["complexity", "semanticRisk", "securityRisk", "uxRisk", "automationFit"],
+      "properties": {
+        "complexity": { "type": "number", "minimum": 0, "maximum": 100 },
+        "semanticRisk": { "type": "number", "minimum": 0, "maximum": 100 },
+        "securityRisk": { "type": "number", "minimum": 0, "maximum": 100 },
+        "uxRisk": { "type": "number", "minimum": 0, "maximum": 100 },
+        "automationFit": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dimension": { "type": "string" },
+          "finding": { "type": "string" },
+          "severity": { "enum": ["info", "warn", "blocker"] }
+        }
+      }
+    },
+    "riskFlags": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "complex_metric",
+          "grid_subtotals",
+          "prompt_query_shaping",
+          "security_filter",
+          "ols",
+          "topn_within_security",
+          "multi_page_sync",
+          "custom_drill",
+          "unknown_expression"
+        ]
+      }
+    },
+    "matchedPatterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs from pattern-catalogue.json"
+    },
+    "laneRecommendation": { "enum": ["automate", "review", "hand_build"] },
+    "assessorNotes": { "type": "string" }
+  }
+}

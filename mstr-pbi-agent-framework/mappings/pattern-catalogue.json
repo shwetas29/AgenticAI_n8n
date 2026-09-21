@@ -1,0 +1,101 @@
+{
+  "version": "1.0.0",
+  "description": "Reusable MSTR → Power BI pattern catalogue. Extend per estate; keep IDs stable.",
+  "patterns": [
+    {
+      "id": "PAT-GRID-MATRIX",
+      "mstr": "Crosstab / grid with attributes on rows/columns and metrics in cells",
+      "pbi": "Matrix visual over star schema; measures evaluate in filter context",
+      "automation": "high",
+      "notes": "Subtotals become matrix subtotals or DAX; do not recreate row-level grid arithmetic blindly"
+    },
+    {
+      "id": "PAT-METRIC-SUM",
+      "mstr": "Simple SUM / COUNT metric",
+      "pbi": "DAX: SUM(Fact[col]) / COUNTROWS / DISTINCTCOUNT",
+      "automation": "high",
+      "daxTemplate": "{{measureName}} := SUM ( '{{factTable}}'[{{column}}] )"
+    },
+    {
+      "id": "PAT-METRIC-RATIO",
+      "mstr": "Ratio / margin % metric (safe divide)",
+      "pbi": "DAX DIVIDE with explicit numerator/denominator measures",
+      "automation": "high",
+      "daxTemplate": "{{measureName}} := DIVIDE ( [{{num}}], [{{den}}], BLANK() )"
+    },
+    {
+      "id": "PAT-CONDITIONAL-FORMAT",
+      "mstr": "Threshold cell shading on metric",
+      "pbi": "Conditional formatting rules on matrix/table visual",
+      "automation": "high"
+    },
+    {
+      "id": "PAT-SUBTOTALS",
+      "mstr": "Region subtotals + grand total in grid engine",
+      "pbi": "Matrix row subtotals / visual calculations; verify aggregation grain",
+      "automation": "medium",
+      "risk": "semanticRisk"
+    },
+    {
+      "id": "PAT-DOSSIER-PAGES",
+      "mstr": "Multi-page dossier",
+      "pbi": "Multi-page Power BI report; page-level visuals",
+      "automation": "high"
+    },
+    {
+      "id": "PAT-APPLY-TO-ALL",
+      "mstr": "Selector applies to all pages/visuals",
+      "pbi": "Synced slicers across pages (Sync slicers pane)",
+      "automation": "high"
+    },
+    {
+      "id": "PAT-DRILL-PATH",
+      "mstr": "Drill hierarchy Region → Store → Department",
+      "pbi": "Hierarchy on dimension + drill-down on visual, or page navigation buttons",
+      "automation": "medium"
+    },
+    {
+      "id": "PAT-KPI-TREND",
+      "mstr": "KPI cards + trend lines",
+      "pbi": "Card / KPI visuals + line chart; shared date axis",
+      "automation": "high"
+    },
+    {
+      "id": "PAT-PROMPT-DATE",
+      "mstr": "Required date-range prompt before run",
+      "pbi": "Date slicer (between) or relative date filter; optional bookmark default",
+      "automation": "medium",
+      "risk": "uxRisk",
+      "notes": "Slicers filter context; they do not reshape the generated SQL the way MSTR prompts can"
+    },
+    {
+      "id": "PAT-SECURITY-FILTER",
+      "mstr": "Security filter tied to logged-in user attributes",
+      "pbi": "RLS role with DAX predicate against security dimension / USERPRINCIPALNAME()",
+      "automation": "low",
+      "risk": "securityRisk",
+      "requiresReview": true
+    },
+    {
+      "id": "PAT-TOPN-WITHIN-RLS",
+      "mstr": "Top N after security restriction",
+      "pbi": "TOPN / RANKX measure or visual-level filter; must evaluate inside RLS context",
+      "automation": "medium",
+      "risk": "semanticRisk",
+      "requiresReview": true,
+      "daxTemplate": "Top10 Sales := CALCULATE ( [Sales], KEEPFILTERS ( TOPN ( 10, ALLSELECTED ( DimProduct[Product] ), [Sales], DESC ) ) )"
+    },
+    {
+      "id": "PAT-SNOWFLAKE-TO-STAR",
+      "mstr": "Snowflaked logical tables / views",
+      "pbi": "Prefer flattened star dims + fact; Direct Lake if Fabric lakehouse",
+      "automation": "medium"
+    },
+    {
+      "id": "PAT-CONSOLIDATION",
+      "mstr": "Near-duplicate reports sharing metrics/attributes",
+      "pbi": "One semantic model + thin reports / field parameters",
+      "automation": "medium"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "reportId": "sample-b-store-operations",
+  "name": "Store Operations",
+  "type": "dossier",
+  "sourceSystem": "microstrategy",
+  "project": "Retail_Ops",
+  "folderPath": "/Public/Operations/Store",
+  "description": "Multi-page dossier. Overview: KPI cards Sales vs Target, Footfall, Stock Availability + trend per KPI. Region selector applies to all pages. Page 2: sales by store bar chart with drill Region → Store → Department.",
+  "businessOwner": "Store Operations Manager",
+  "usage": {
+    "monthlyActiveUsers": 85,
+    "executionsLast90Days": 2400,
+    "criticality": "high"
+  },
+  "layout": {
+    "pages": ["Overview", "Store Detail"],
+    "visuals": ["kpi_card", "line_trend", "bar_chart", "region_selector"]
+  },
+  "attributes": ["Region", "Store", "Department", "Date"],
+  "metrics": [
+    { "name": "Sales", "expressionHint": "SUM(Sales Amount)" },
+    { "name": "Sales Target", "expressionHint": "SUM(Target Amount)" },
+    { "name": "Sales vs Target", "expressionHint": "Sales / Sales Target" },
+    { "name": "Footfall", "expressionHint": "SUM(Footfall Count)" },
+    { "name": "Stock Availability", "expressionHint": "Available SKUs / Assortment SKUs" }
+  ],
+  "filters": [
+    {
+      "name": "Region Selector",
+      "kind": "viewFilter",
+      "detail": "Apply-to-all pages and visuals when changed"
+    }
+  ],
+  "security": { "rlsHints": [], "olsHints": [] },
+  "drillPaths": [
+    { "path": ["Region", "Store", "Department"] }
+  ],
+  "dependencies": [
+    { "objectType": "dossier_chapter", "name": "Overview" },
+    { "objectType": "dossier_chapter", "name": "Store Detail" }
+  ]
+}

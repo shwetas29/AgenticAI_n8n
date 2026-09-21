@@ -1,0 +1,76 @@
+{
+  "reportId": "sample-c-category-manager",
+  "targetPlatform": "fabric",
+  "semanticModel": {
+    "name": "Category Management",
+    "mode": "directlake",
+    "tables": [
+      { "name": "FactSales", "role": "fact", "grain": "Product × Supplier × Date", "keyColumns": ["ProductKey", "SupplierKey", "DateKey"], "sourceHint": "{{lakehouse.fact_sales}}" },
+      { "name": "DimProduct", "role": "dimension", "grain": "Product", "keyColumns": ["ProductKey"], "sourceHint": "{{lakehouse.dim_product}}" },
+      { "name": "DimSupplier", "role": "dimension", "grain": "Supplier", "keyColumns": ["SupplierKey"], "sourceHint": "{{lakehouse.dim_supplier}}" },
+      { "name": "DimDate", "role": "dimension", "grain": "Date", "keyColumns": ["DateKey"], "sourceHint": "{{lakehouse.dim_date}}" },
+      { "name": "DimUserCategory", "role": "security", "grain": "User × Category", "keyColumns": ["UserPrincipalName", "CategoryKey"], "sourceHint": "{{lakehouse.bridge_user_category}}" }
+    ],
+    "relationships": [
+      { "from": "FactSales[ProductKey]", "to": "DimProduct[ProductKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactSales[SupplierKey]", "to": "DimSupplier[SupplierKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactSales[DateKey]", "to": "DimDate[DateKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "DimUserCategory[CategoryKey]", "to": "DimProduct[CategoryKey]", "cardinality": "many-to-one", "filterDirection": "single" }
+    ]
+  },
+  "measures": [
+    {
+      "name": "Sales",
+      "dax": "Sales := SUM ( FactSales[SalesAmount] )",
+      "formatString": "£#,##0",
+      "sourceMetric": "Sales",
+      "patternId": "PAT-METRIC-SUM",
+      "confidence": 0.95
+    },
+    {
+      "name": "Top 10 Product Sales",
+      "dax": "Top 10 Product Sales :=\nCALCULATE (\n    [Sales],\n    KEEPFILTERS (\n        TOPN ( 10, ALLSELECTED ( DimProduct[Product] ), [Sales], DESC )\n    )\n)",
+      "sourceMetric": "Top 10 Products filter",
+      "patternId": "PAT-TOPN-WITHIN-RLS",
+      "confidence": 0.8
+    }
+  ],
+  "reportPages": [
+    {
+      "name": "Category Manager",
+      "visuals": [
+        {
+          "type": "table",
+          "title": "Top Products by Supplier",
+          "fields": {
+            "rows": ["DimSupplier[Supplier]", "DimProduct[Product]"],
+            "values": ["Sales"]
+          },
+          "interactions": ["visual filter or measure enforces Top 10 within RLS"]
+        }
+      ],
+      "slicers": [
+        { "field": "DimDate[Date]", "syncAcrossPages": false }
+      ]
+    }
+  ],
+  "security": {
+    "rlsRoles": [
+      {
+        "roleName": "CategoryManager",
+        "table": "DimProduct",
+        "filterDax": "VAR upn = USERPRINCIPALNAME()\nRETURN\n    DimProduct[CategoryKey] IN\n        CALCULATETABLE (\n            VALUES ( DimUserCategory[CategoryKey] ),\n            DimUserCategory[UserPrincipalName] = upn\n        )",
+        "notes": "Mandatory security review. Validate with two managers in overlapping/non-overlapping categories."
+      }
+    ],
+    "olsNotes": "Not required unless supplier attributes must be hidden object-level.",
+    "requiresSecurityReview": true
+  },
+  "uxNotes": "MSTR required prompt becomes a date Between slicer; report is interactive rather than run-then-view. Top 10 must be evaluated after RLS.",
+  "openQuestions": [
+    "Confirm UPN ↔ category bridge freshness and ownership",
+    "Confirm whether Top 10 is by product only or supplier-product pair",
+    "Confirm whether users may clear date slicer (MSTR prompt was mandatory)"
+  ],
+  "buildLane": "review"
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migration.local/schemas/evidence-bundle.schema.json",
+  "title": "EvidenceBundle",
+  "type": "object",
+  "required": ["reportId", "intake", "decisionLog"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "frameworkVersion": { "type": "string" },
+    "status": { "type": "string" },
+    "intake": { "type": "object" },
+    "inventory": { "type": "object" },
+    "assessment": { "type": "object" },
+    "classification": { "type": "object" },
+    "blueprint": { "type": "object" },
+    "validation": { "type": "object" },
+    "certification": { "type": "object" },
+    "approvals": { "type": "object" },
+    "hitl": { "type": "object" },
+    "decisionLog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": { "type": "string" },
+          "stage": { "type": "string" },
+          "reportId": { "type": "string" }
+        }
+      }
+    }
+  }
+}

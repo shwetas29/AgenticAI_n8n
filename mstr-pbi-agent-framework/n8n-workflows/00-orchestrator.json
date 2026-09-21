@@ -1,0 +1,626 @@
+{
+  "name": "00-orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**00-orchestrator**\nControl loop: Discover\u2192Assess\u2192Classify\u2192(HITL)\u2192Transform\u2192Validate\u2192Certify\nPOST /webhook/mstr-pbi/orchestrate with report intake JSON.",
+        "height": 180,
+        "width": 520,
+        "color": 5
+      },
+      "id": "2e7f81da-347e-4715-9f2e-2a9af91df9a7",
+      "name": "Note **00-orchestrator**\nCont",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "97230ad4-ce62-4d66-8bde-8adc4e122bab",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/orchestrate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "3aed622e-d45b-435a-8c9f-4db28ba2f896",
+      "name": "Orchestrate Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "4985ce0b-05d1-4f30-ae5c-fad4de0c739b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const intake = $input.first().json.intake || $input.first().json;\nif (!intake.reportId) throw new Error('intake.reportId required');\nreturn [{ json: {\n  reportId: intake.reportId,\n  intake,\n  decisionLog: [{ ts: new Date().toISOString(), stage: 'start', reportId: intake.reportId }],\n  frameworkVersion: $env.FRAMEWORK_VERSION || '1.0.0'\n}}];"
+      },
+      "id": "b9492f48-dde2-46a2-958b-d5523d37310e",
+      "name": "Init Bundle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "01-discovery"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "15bc80cb-c56b-4aa6-8eef-4e05023723fc",
+      "name": "Run Discovery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bundle = $('Init Bundle').first().json;\nconst discovery = $input.first().json.result || $input.first().json;\nbundle.inventory = discovery;\nbundle.decisionLog.push({ ts: new Date().toISOString(), stage: 'discover', reportId: bundle.reportId });\nreturn [{ json: bundle }];"
+      },
+      "id": "8cd817a9-14b7-4501-98eb-814315a28ca0",
+      "name": "Merge Discovery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "02-assessor"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b3997d70-5296-4d3a-b928-04cbfca4b486",
+      "name": "Run Assessor",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bundle = $('Merge Discovery').first().json;\nbundle.assessment = $input.first().json.result || $input.first().json;\nbundle.decisionLog.push({ ts: new Date().toISOString(), stage: 'assess', reportId: bundle.reportId });\nreturn [{ json: bundle }];"
+      },
+      "id": "4dd683cd-cfcd-4ebd-adc1-b79c6f7f2992",
+      "name": "Merge Assessment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "03-classifier"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "18245441-f610-4344-8557-b64b585f8366",
+      "name": "Run Classifier",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1480,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bundle = $('Merge Assessment').first().json;\nbundle.classification = $input.first().json.result || $input.first().json;\nbundle.decisionLog.push({ ts: new Date().toISOString(), stage: 'classify', reportId: bundle.reportId });\nreturn [{ json: bundle }];"
+      },
+      "id": "cd5fc20c-446e-4830-9c62-0437c2f2682f",
+      "name": "Merge Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "baa74097-d02b-43d4-bbac-4cb3205abea3",
+              "leftValue": "={{ $json.classification.requiresHumanApproval }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a8a7b848-d5a5-426d-833e-85bfba289e84",
+      "name": "Needs HITL?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "9c9e2f83-e479-4131-86ed-f30c4d3b54ae",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        80
+      ],
+      "webhookId": "0a17a480-0931-4356-94de-3505ac411b2b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const bundle = $('Merge Classification').first().json;\nconst approval = $input.first().json;\nbundle.approvals = {\n  approved: approval.approved !== false,\n  approver: approval.approver || 'unknown',\n  notes: approval.notes || '',\n  ts: new Date().toISOString()\n};\nif (bundle.approvals.approved === false) {\n  bundle.halted = true;\n  bundle.haltReason = 'Rejected at HITL';\n}\nbundle.decisionLog.push({ ts: new Date().toISOString(), stage: 'hitl', reportId: bundle.reportId, approved: bundle.approvals.approved });\nreturn [{ json: bundle }];"
+      },
+      "id": "0a34dbf3-2e84-4648-9f5b-10f7ca43d18e",
+      "name": "Record Approval",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bundle = $input.first().json;\nbundle.approvals = { approved: true, approver: 'policy-auto', notes: 'requiresHumanApproval=false', ts: new Date().toISOString() };\nbundle.decisionLog.push({ ts: new Date().toISOString(), stage: 'hitl_skip', reportId: bundle.reportId });\nreturn [{ json: bundle }];"
+      },
+      "id": "953d134b-d699-4150-aa2c-0128fdbd0be4",
+      "name": "Skip HITL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "9027f22d-645b-4a1a-9665-e7a72f5526a6",
+              "leftValue": "={{ $json.halted }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "24ae82cd-b4ce-4d19-bbe1-3ab2f80ebccb",
+      "name": "Rejected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$input.first().json, status: 'halted' } }];"
+      },
+      "id": "9ed885a3-43a7-4179-b4e9-f2f4b1f2d10a",
+      "name": "Emit Halted Bundle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "04-transformer"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "d4165723-41fa-4fac-9f39-8e5d5455d8a6",
+      "name": "Run Transformer",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2920,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prior = $('Rejected?').first().json;\nconst blueprint = $input.first().json.result || $input.first().json;\nprior.blueprint = blueprint;\nprior.decisionLog.push({ ts: new Date().toISOString(), stage: 'transform', reportId: prior.reportId });\nreturn [{ json: prior }];"
+      },
+      "id": "e38e1ea3-6332-4892-a59d-7280a4a73352",
+      "name": "Merge Blueprint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "05-validator"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "5e137a5e-b5bb-4c49-8c78-964a05d87b3b",
+      "name": "Run Validator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prior = $('Merge Blueprint').first().json;\nprior.validation = $input.first().json.result || $input.first().json;\nprior.decisionLog.push({ ts: new Date().toISOString(), stage: 'validate', reportId: prior.reportId });\nreturn [{ json: prior }];"
+      },
+      "id": "c95d9040-8791-40e7-a5af-e806137961f0",
+      "name": "Merge Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "06-certifier"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "67976f40-83cf-4924-b78a-3fca0e4aebb2",
+      "name": "Run Certifier",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prior = $('Merge Validation').first().json;\nprior.certification = $input.first().json.result || $input.first().json;\nprior.decisionLog.push({ ts: new Date().toISOString(), stage: 'certify', reportId: prior.reportId });\nprior.status = prior.certification.certificationStatus || 'complete';\nreturn [{ json: prior }];"
+      },
+      "id": "e8d599ce-c8ae-4743-b12a-897f68dc80bd",
+      "name": "Final Evidence Bundle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4120,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Init Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrate Webhook": {
+      "main": [
+        [
+          {
+            "node": "Init Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Bundle": {
+      "main": [
+        [
+          {
+            "node": "Run Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Discovery": {
+      "main": [
+        [
+          {
+            "node": "Merge Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Discovery": {
+      "main": [
+        [
+          {
+            "node": "Run Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Assessor": {
+      "main": [
+        [
+          {
+            "node": "Merge Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Assessment": {
+      "main": [
+        [
+          {
+            "node": "Run Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Classifier": {
+      "main": [
+        [
+          {
+            "node": "Merge Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Classification": {
+      "main": [
+        [
+          {
+            "node": "Needs HITL?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs HITL?": {
+      "main": [
+        [
+          {
+            "node": "Wait for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Approval": {
+      "main": [
+        [
+          {
+            "node": "Record Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Approval": {
+      "main": [
+        [
+          {
+            "node": "Rejected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip HITL": {
+      "main": [
+        [
+          {
+            "node": "Rejected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rejected?": {
+      "main": [
+        [
+          {
+            "node": "Emit Halted Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Transformer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Transformer": {
+      "main": [
+        [
+          {
+            "node": "Merge Blueprint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Blueprint": {
+      "main": [
+        [
+          {
+            "node": "Run Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Validator": {
+      "main": [
+        [
+          {
+            "node": "Merge Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Validation": {
+      "main": [
+        [
+          {
+            "node": "Run Certifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Certifier": {
+      "main": [
+        [
+          {
+            "node": "Final Evidence Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "70e9b9c5-7242-47f8-8840-7bbdf67d0cda",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "MSTR\u2192PBI migration control-loop orchestrator"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

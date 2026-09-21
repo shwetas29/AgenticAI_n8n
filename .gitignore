@@ -1,0 +1,4 @@
+.n8n-data/
+mstr-pbi-agent-framework/node_modules/
+mstr-pbi-agent-framework/config/n8n.local.env
+mstr-pbi-agent-framework/package-lock.json

@@ -1,0 +1,59 @@
+{
+  "reportId": "sample-b-store-operations",
+  "targetPlatform": "fabric",
+  "semanticModel": {
+    "name": "Store Operations",
+    "mode": "directlake",
+    "tables": [
+      { "name": "FactStoreOps", "role": "fact", "grain": "Store × Date", "keyColumns": ["StoreKey", "DateKey"], "sourceHint": "{{lakehouse.fact_store_ops}}" },
+      { "name": "DimStore", "role": "dimension", "grain": "Store", "keyColumns": ["StoreKey"], "sourceHint": "{{lakehouse.dim_store}}" },
+      { "name": "DimRegion", "role": "dimension", "grain": "Region", "keyColumns": ["RegionKey"], "sourceHint": "{{lakehouse.dim_region}}" },
+      { "name": "DimDepartment", "role": "dimension", "grain": "Department", "keyColumns": ["DepartmentKey"], "sourceHint": "{{lakehouse.dim_department}}" },
+      { "name": "DimDate", "role": "dimension", "grain": "Date", "keyColumns": ["DateKey"], "sourceHint": "{{lakehouse.dim_date}}" }
+    ],
+    "relationships": [
+      { "from": "FactStoreOps[StoreKey]", "to": "DimStore[StoreKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "DimStore[RegionKey]", "to": "DimRegion[RegionKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactStoreOps[DepartmentKey]", "to": "DimDepartment[DepartmentKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactStoreOps[DateKey]", "to": "DimDate[DateKey]", "cardinality": "many-to-one", "filterDirection": "single" }
+    ]
+  },
+  "measures": [
+    { "name": "Sales", "dax": "Sales := SUM ( FactStoreOps[SalesAmount] )", "sourceMetric": "Sales", "patternId": "PAT-METRIC-SUM", "confidence": 0.95 },
+    { "name": "Sales Target", "dax": "Sales Target := SUM ( FactStoreOps[TargetAmount] )", "sourceMetric": "Sales Target", "patternId": "PAT-METRIC-SUM", "confidence": 0.9 },
+    { "name": "Sales vs Target", "dax": "Sales vs Target := DIVIDE ( [Sales], [Sales Target], BLANK() )", "formatString": "0.0%", "sourceMetric": "Sales vs Target", "patternId": "PAT-METRIC-RATIO", "confidence": 0.9 },
+    { "name": "Footfall", "dax": "Footfall := SUM ( FactStoreOps[FootfallCount] )", "sourceMetric": "Footfall", "patternId": "PAT-METRIC-SUM", "confidence": 0.9 },
+    { "name": "Stock Availability", "dax": "Stock Availability := DIVIDE ( SUM ( FactStoreOps[AvailableSkus] ), SUM ( FactStoreOps[AssortmentSkus] ), BLANK() )", "formatString": "0.0%", "sourceMetric": "Stock Availability", "patternId": "PAT-METRIC-RATIO", "confidence": 0.85 }
+  ],
+  "reportPages": [
+    {
+      "name": "Overview",
+      "visuals": [
+        { "type": "card", "title": "Sales vs Target", "fields": { "values": ["Sales vs Target"] } },
+        { "type": "card", "title": "Footfall", "fields": { "values": ["Footfall"] } },
+        { "type": "card", "title": "Stock Availability", "fields": { "values": ["Stock Availability"] } },
+        { "type": "line_chart", "title": "KPI Trends", "fields": { "axis": ["DimDate[Date]"], "values": ["Sales", "Footfall", "Stock Availability"] } }
+      ],
+      "slicers": [{ "field": "DimRegion[Region]", "syncAcrossPages": true }]
+    },
+    {
+      "name": "Store Detail",
+      "visuals": [
+        {
+          "type": "bar_chart",
+          "title": "Sales by Store",
+          "fields": {
+            "axis": ["DimRegion[Region]", "DimStore[Store]", "DimDepartment[Department]"],
+            "values": ["Sales"]
+          },
+          "interactions": ["hierarchy drill Region → Store → Department"]
+        }
+      ],
+      "slicers": [{ "field": "DimRegion[Region]", "syncAcrossPages": true }]
+    }
+  ],
+  "security": { "rlsRoles": [], "olsNotes": "None", "requiresSecurityReview": false },
+  "uxNotes": "Use Sync slicers so Region drives Overview and Store Detail. Prefer a Store hierarchy on DimStore rather than separate bookmark drills unless UX redesign is requested.",
+  "openQuestions": ["Confirm target grain matches Sales grain", "Confirm Footfall source system latency"],
+  "buildLane": "automate"
+}

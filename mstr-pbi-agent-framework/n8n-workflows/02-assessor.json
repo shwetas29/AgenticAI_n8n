@@ -1,0 +1,157 @@
+{
+  "name": "02-assessor",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**02-assessor**\nStage: assess\nImports system prompt from framework prompts/02-assessor.md\nExpects item.json with report context.",
+        "height": 140,
+        "width": 480,
+        "color": 5
+      },
+      "id": "b1c9592f-7c84-437f-b6fd-d07d246a3d52",
+      "name": "Note **02-assessor**\nStage: a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8502d65c-d728-4735-9606-18ba995abdf3",
+      "name": "When clicked",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/assess",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "f132a4ad-6fad-4dc7-8caf-376b78227b98",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "3f63d966-9c94-4b64-bb68-131b784eff51"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst systemPrompt = \"You are the Assessor agent in a MicroStrategy \\u2192 Power BI migration factory.\\n\\nInput: inventory JSON + pattern catalogue IDs/descriptions.\\nOutput: assessment JSON only (see assessment.schema.json).\\n\\nScoring guidance (0\\u2013100):\\n- complexity: layout pages, #metrics, drills, consolidations\\n- semanticRisk: grid subtotals, ratios, TopN, non-additive metrics, unknown expressions\\n- securityRisk: security filters, OLS, prompt-driven row restriction\\n- uxRisk: prompts vs slicers, apply-to-all, multi-page sync, redesign needs\\n- automationFit: how well catalogue patterns cover the report (100 = fully covered)\\n\\nLane recommendation:\\n- automate: high automationFit, low securityRisk, no force-review flags\\n- review: medium risk or any force-review flag (security_filter, ols, topn_within_security, unknown_expression)\\n- hand_build: unique logic, low automationFit, high composite risk\\n\\nAlways list matchedPatterns using catalogue IDs (e.g. PAT-GRID-MATRIX).\\nBe conservative: when unsure, raise semanticRisk / securityRisk and recommend review.\\n\";\nconst userPrompt = JSON.stringify({\n  stage: \"assess\",\n  instruction: \"Return assessment JSON only. Include matchedPatterns.\",\n  context: item\n}, null, 2);\nreturn [{ json: { ...item, systemPrompt, userPrompt, stage: \"assess\" } }];"
+      },
+      "id": "83c03d0e-c251-4797-b98c-c080adcdbdce",
+      "name": "Prepare LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4.1', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }] }) }}",
+        "options": {}
+      },
+      "id": "96098da5-2841-42dc-b840-cd46726ba59e",
+      "name": "Call LLM (JSON mode)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        200
+      ],
+      "notes": "Attach Header Auth credential: Authorization = Bearer <API_KEY>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nlet content = root.choices?.[0]?.message?.content ?? root.message?.content ?? root.content;\nif (typeof content !== 'string') content = JSON.stringify(content ?? {});\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) {\n  const m = content.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Agent did not return JSON: ' + e.message);\n  parsed = JSON.parse(m[0]);\n}\nconst prior = $('Prepare LLM Payload').first().json;\nreturn [{ json: {\n  reportId: prior.reportId || prior.intake?.reportId || parsed.reportId,\n  stage: prior.stage,\n  result: parsed,\n  evidenceEvent: {\n    ts: new Date().toISOString(),\n    stage: prior.stage,\n    reportId: prior.reportId || parsed.reportId\n  }\n}}];"
+      },
+      "id": "2401b296-a25b-458d-a177-53cb4d94d4be",
+      "name": "Parse Agent JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "When clicked": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Payload": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (JSON mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (JSON mode)": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "12139524-9a54-4f5f-bfe0-a7bb214bd6c7",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Specialist agent: assess"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

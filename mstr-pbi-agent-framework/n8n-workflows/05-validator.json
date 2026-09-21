@@ -1,0 +1,157 @@
+{
+  "name": "05-validator",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**05-validator**\nStage: validate\nImports system prompt from framework prompts/05-validator.md\nExpects item.json with report context.",
+        "height": 140,
+        "width": 480,
+        "color": 5
+      },
+      "id": "5d9ca155-bb0f-44cb-be24-2779c3d765c6",
+      "name": "Note **05-validator**\nStage: ",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6219ccbf-b7d1-4cf3-813a-7bd586013d23",
+      "name": "When clicked",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/validate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e8b56d39-41a4-4a17-bd79-a15b58fc3afd",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "1b139579-f253-49e4-80bf-0cda7fa583f8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst systemPrompt = \"You are the Validator agent in a MicroStrategy \\u2192 Power BI migration factory.\\n\\nInput: inventory + blueprint (+ optional reconciliation samples).\\nOutput: validation-plan JSON only.\\n\\nAlways cover five categories: data, metrics, behaviour, security, performance.\\nMark severity:\\n- blocker: wrong totals on critical metrics, RLS leakage, missing security\\n- major: filter/prompt behaviour drift, TopN mismatch, drill path gaps\\n- minor: formatting, layout polish, non-critical perf\\n\\nExit criteria must include:\\n- No material data discrepancy on certified metrics\\n- Security validated for representative users\\n- Performance acceptable for expected concurrency\\n- Business sign-off recorded\\n\\nSet cutoverStage to pilot for first pattern proofs, parallel for business-critical, else release readiness.\\nOwner automation may prepare scripts; security and business checks remain human-owned.\\n\";\nconst userPrompt = JSON.stringify({\n  stage: \"validate\",\n  instruction: \"Return validation-plan JSON only.\",\n  context: item\n}, null, 2);\nreturn [{ json: { ...item, systemPrompt, userPrompt, stage: \"validate\" } }];"
+      },
+      "id": "2529fa25-2b1b-41af-87f2-d76d233669a7",
+      "name": "Prepare LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4.1', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }] }) }}",
+        "options": {}
+      },
+      "id": "28c426ae-3afd-4be4-af01-ae093c0aadc9",
+      "name": "Call LLM (JSON mode)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        200
+      ],
+      "notes": "Attach Header Auth credential: Authorization = Bearer <API_KEY>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nlet content = root.choices?.[0]?.message?.content ?? root.message?.content ?? root.content;\nif (typeof content !== 'string') content = JSON.stringify(content ?? {});\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) {\n  const m = content.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Agent did not return JSON: ' + e.message);\n  parsed = JSON.parse(m[0]);\n}\nconst prior = $('Prepare LLM Payload').first().json;\nreturn [{ json: {\n  reportId: prior.reportId || prior.intake?.reportId || parsed.reportId,\n  stage: prior.stage,\n  result: parsed,\n  evidenceEvent: {\n    ts: new Date().toISOString(),\n    stage: prior.stage,\n    reportId: prior.reportId || parsed.reportId\n  }\n}}];"
+      },
+      "id": "545bb098-db2d-4bf1-95e3-69924b206233",
+      "name": "Parse Agent JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "When clicked": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Payload": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (JSON mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (JSON mode)": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ae738e9f-4d73-49fa-9c38-32b1a29ab8ab",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Specialist agent: validate"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

@@ -1,0 +1,49 @@
+{
+  "reportId": "sample-c-category-manager",
+  "name": "Category Manager",
+  "type": "grid",
+  "sourceSystem": "microstrategy",
+  "project": "Retail_Category",
+  "folderPath": "/Public/Category/Manager",
+  "description": "Grid of Supplier, Product, Sales. Security filter restricts each category manager to their product category. Date-range prompt before run. Top 10 best-selling products within visible (secured) data.",
+  "businessOwner": "Category Director",
+  "usage": {
+    "monthlyActiveUsers": 40,
+    "executionsLast90Days": 900,
+    "criticality": "regulatory"
+  },
+  "layout": {
+    "rows": ["Supplier", "Product"],
+    "visuals": ["grid"]
+  },
+  "attributes": ["Supplier", "Product", "Product Category", "Date"],
+  "metrics": [
+    { "name": "Sales", "expressionHint": "SUM(Sales Amount)", "format": "£#,##0" }
+  ],
+  "filters": [
+    {
+      "name": "Date Range Prompt",
+      "kind": "prompt",
+      "detail": "Required date range before report executes"
+    },
+    {
+      "name": "Top 10 Products",
+      "kind": "topN",
+      "detail": "Top 10 by Sales within security-visible rows"
+    },
+    {
+      "name": "Category Manager Security",
+      "kind": "securityFilter",
+      "detail": "Restrict to product categories assigned to logged-in user"
+    }
+  ],
+  "security": {
+    "rlsHints": ["Filter DimProduct[Category] by user-category mapping for USERNAME"],
+    "olsHints": []
+  },
+  "drillPaths": [],
+  "dependencies": [
+    { "objectType": "security_filter", "name": "Category Manager Security" },
+    { "objectType": "prompt", "name": "Date Range Prompt" }
+  ]
+}
