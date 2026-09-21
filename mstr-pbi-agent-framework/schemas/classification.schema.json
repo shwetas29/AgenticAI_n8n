@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migration.local/schemas/classification.schema.json",
+  "title": "Classification",
+  "type": "object",
+  "required": ["reportId", "disposition", "rationale", "requiresHumanApproval"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "disposition": { "enum": ["MIGRATE", "CONSOLIDATE", "REDESIGN", "RETIRE"] },
+    "consolidateInto": {
+      "type": "object",
+      "properties": {
+        "targetModel": { "type": "string" },
+        "targetReportFamily": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "priority": { "enum": ["P0", "P1", "P2", "P3"] },
+    "wave": { "type": "string" },
+    "rationale": { "type": "string" },
+    "requiresHumanApproval": { "type": "boolean" },
+    "approvalReasons": { "type": "array", "items": { "type": "string" } }
+  }
+}

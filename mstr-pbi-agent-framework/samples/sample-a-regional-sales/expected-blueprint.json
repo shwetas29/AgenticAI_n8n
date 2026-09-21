@@ -1,0 +1,116 @@
+{
+  "reportId": "sample-a-regional-sales",
+  "targetPlatform": "fabric",
+  "semanticModel": {
+    "name": "Sales Performance",
+    "mode": "directlake",
+    "tables": [
+      {
+        "name": "FactSales",
+        "role": "fact",
+        "grain": "Region × Product Category × Date",
+        "keyColumns": ["DateKey", "RegionKey", "CategoryKey"],
+        "sourceHint": "{{lakehouse.fact_sales}}"
+      },
+      {
+        "name": "DimRegion",
+        "role": "dimension",
+        "grain": "Region",
+        "keyColumns": ["RegionKey"],
+        "sourceHint": "{{lakehouse.dim_region}}"
+      },
+      {
+        "name": "DimProduct",
+        "role": "dimension",
+        "grain": "Product Category",
+        "keyColumns": ["CategoryKey"],
+        "sourceHint": "{{lakehouse.dim_product_category}}"
+      },
+      {
+        "name": "DimDate",
+        "role": "dimension",
+        "grain": "Date",
+        "keyColumns": ["DateKey"],
+        "sourceHint": "{{lakehouse.dim_date}}"
+      }
+    ],
+    "relationships": [
+      { "from": "FactSales[RegionKey]", "to": "DimRegion[RegionKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactSales[CategoryKey]", "to": "DimProduct[CategoryKey]", "cardinality": "many-to-one", "filterDirection": "single" },
+      { "from": "FactSales[DateKey]", "to": "DimDate[DateKey]", "cardinality": "many-to-one", "filterDirection": "single" }
+    ]
+  },
+  "measures": [
+    {
+      "name": "Revenue",
+      "dax": "Revenue := SUM ( FactSales[SalesAmount] )",
+      "formatString": "£#,##0",
+      "sourceMetric": "Revenue",
+      "patternId": "PAT-METRIC-SUM",
+      "confidence": 0.95
+    },
+    {
+      "name": "Units Sold",
+      "dax": "Units Sold := SUM ( FactSales[Units] )",
+      "formatString": "#,##0",
+      "sourceMetric": "Units Sold",
+      "patternId": "PAT-METRIC-SUM",
+      "confidence": 0.95
+    },
+    {
+      "name": "Margin",
+      "dax": "Margin := SUM ( FactSales[MarginAmount] )",
+      "formatString": "£#,##0",
+      "sourceMetric": "Margin % (numerator)",
+      "patternId": "PAT-METRIC-SUM",
+      "confidence": 0.9
+    },
+    {
+      "name": "Margin %",
+      "dax": "Margin % := DIVIDE ( [Margin], [Revenue], BLANK() )",
+      "formatString": "0.0%",
+      "sourceMetric": "Margin %",
+      "patternId": "PAT-METRIC-RATIO",
+      "confidence": 0.9
+    }
+  ],
+  "reportPages": [
+    {
+      "name": "Regional Sales Performance",
+      "visuals": [
+        {
+          "type": "matrix",
+          "title": "Regional Sales Performance",
+          "fields": {
+            "rows": ["DimRegion[Region]", "DimProduct[Product Category]"],
+            "columns": ["DimDate[Month]"],
+            "values": ["Revenue", "Margin %", "Units Sold"]
+          },
+          "interactions": ["matrix subtotals on Region", "grand total on"],
+          "conditionalFormatting": [
+            {
+              "measure": "Margin %",
+              "rules": [
+                { "when": "> 0.2", "color": "green" },
+                { "when": "0.1–0.2", "color": "amber" },
+                { "when": "< 0.1", "color": "red" }
+              ]
+            }
+          ]
+        }
+      ],
+      "slicers": []
+    }
+  ],
+  "security": {
+    "rlsRoles": [],
+    "olsNotes": "None required for Sample A",
+    "requiresSecurityReview": false
+  },
+  "uxNotes": "MSTR grid consolidations map to matrix subtotals. Verify Margin % at subtotal rows uses DIVIDE of summed components, not average of percentages.",
+  "openQuestions": [
+    "Confirm MarginAmount column exists at fact grain",
+    "Confirm Month is calendar month from DimDate"
+  ],
+  "buildLane": "automate"
+}

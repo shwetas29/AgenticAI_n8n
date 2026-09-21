@@ -1,0 +1,157 @@
+{
+  "name": "04-transformer",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**04-transformer**\nStage: transform\nImports system prompt from framework prompts/04-transformer.md\nExpects item.json with report context.",
+        "height": 140,
+        "width": 480,
+        "color": 5
+      },
+      "id": "0a877ebe-32dd-42db-b8ad-d496770bfb85",
+      "name": "Note **04-transformer**\nStage",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7775bd26-2d5b-4e57-aeae-286cdce5eb5c",
+      "name": "When clicked",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/transform",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "52d1bda6-5ca3-4116-889b-081bd7121632",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "2bf7d8cc-f118-41c6-837a-b4cdbddb8e36"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst systemPrompt = \"You are the Transformer agent in a MicroStrategy \\u2192 Power BI / Fabric migration factory.\\n\\nGoal: preserve decision intent, not pixel parity. Prefer star schema + DAX + standard visuals.\\n\\nInput: inventory + assessment + classification + pattern catalogue.\\nOutput: pbi-blueprint JSON only (pbi-blueprint.schema.json).\\n\\nHard rules:\\n1. Map metrics to explicit DAX; use DIVIDE for ratios; never invent warehouse columns \\u2014 use sourceHint placeholders like {{fact_sales.revenue}}.\\n2. Security filters \\u2192 RLS roles with DAX predicates; set requiresSecurityReview=true whenever RLS/OLS is present.\\n3. Prompts \\u2192 slicers or report-level filters; call out behavioural differences in uxNotes / openQuestions.\\n4. TopN within security \\u2192 TOPN/RANKX that respects RLS; flag for review.\\n5. Multi-page apply-to-all \\u2192 synced slicers.\\n6. Subtotals \\u2192 matrix subtotals; note if MSTR used non-standard consolidation.\\n7. buildLane must align with assessment.laneRecommendation unless classification is REDESIGN (then hand_build).\\n8. List every unresolved assumption in openQuestions.\\n\\nNever claim the blueprint is production-certified; Validator + Certifier own that.\\n\";\nconst userPrompt = JSON.stringify({\n  stage: \"transform\",\n  instruction: \"Return pbi-blueprint JSON only.\",\n  context: item\n}, null, 2);\nreturn [{ json: { ...item, systemPrompt, userPrompt, stage: \"transform\" } }];"
+      },
+      "id": "e72b174f-d07b-497b-9e40-06651305eab1",
+      "name": "Prepare LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4.1', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }] }) }}",
+        "options": {}
+      },
+      "id": "745c4ad4-4655-4a66-8f0a-b2c62cf7275d",
+      "name": "Call LLM (JSON mode)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        200
+      ],
+      "notes": "Attach Header Auth credential: Authorization = Bearer <API_KEY>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nlet content = root.choices?.[0]?.message?.content ?? root.message?.content ?? root.content;\nif (typeof content !== 'string') content = JSON.stringify(content ?? {});\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) {\n  const m = content.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Agent did not return JSON: ' + e.message);\n  parsed = JSON.parse(m[0]);\n}\nconst prior = $('Prepare LLM Payload').first().json;\nreturn [{ json: {\n  reportId: prior.reportId || prior.intake?.reportId || parsed.reportId,\n  stage: prior.stage,\n  result: parsed,\n  evidenceEvent: {\n    ts: new Date().toISOString(),\n    stage: prior.stage,\n    reportId: prior.reportId || parsed.reportId\n  }\n}}];"
+      },
+      "id": "e35a83a7-5cd5-484d-904d-a1c2bcfec6d0",
+      "name": "Parse Agent JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "When clicked": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Payload": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (JSON mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (JSON mode)": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "021dfa6b-22d5-4fe6-80f7-f5f7e86e1edf",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Specialist agent: transform"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

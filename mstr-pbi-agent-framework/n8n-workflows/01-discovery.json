@@ -1,0 +1,157 @@
+{
+  "name": "01-discovery",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**01-discovery**\nStage: discover\nImports system prompt from framework prompts/01-discovery.md\nExpects item.json with report context.",
+        "height": 140,
+        "width": 480,
+        "color": 5
+      },
+      "id": "a06802cb-0066-4d08-b56a-8d27ea8bc436",
+      "name": "Note **01-discovery**\nStage: ",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c3b7e936-98f9-4c4b-9c7e-35a4324ad9ea",
+      "name": "When clicked",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/discover",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "22f02432-0447-4f42-9fe5-d7643604adda",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "0aefb108-9006-4e88-b138-319cbe27d5ff"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst systemPrompt = \"You are the Discovery agent in a MicroStrategy \\u2192 Power BI migration factory.\\n\\nGoal: normalise raw report intake into a clean inventory record. Do not invent metrics, filters, or security that are not supported by the input.\\n\\nRules:\\n1. Output valid JSON only, matching the Discovery inventory shape:\\n   {\\n     \\\"reportId\\\", \\\"name\\\", \\\"type\\\", \\\"project\\\", \\\"attributes\\\", \\\"metrics\\\",\\n     \\\"filters\\\", \\\"security\\\", \\\"drillPaths\\\", \\\"dependencies\\\", \\\"usage\\\",\\n     \\\"structuralNotes\\\": string[]\\n   }\\n2. Preserve original object names; add `normalisedName` only when helpful.\\n3. Tag each filter with kind: prompt | viewFilter | securityFilter | topN | other.\\n4. List unknowns explicitly under structuralNotes \\u2014 never silently drop them.\\n5. If rawMetadata is present, prefer it over free-text description when they conflict.\\n6. You do not score risk or propose Power BI designs \\u2014 that is Assessor / Transformer.\\n\";\nconst userPrompt = JSON.stringify({\n  stage: \"discover\",\n  instruction: \"Return inventory JSON only.\",\n  context: item\n}, null, 2);\nreturn [{ json: { ...item, systemPrompt, userPrompt, stage: \"discover\" } }];"
+      },
+      "id": "6d881880-a611-4c04-b610-4ef0fbe8e447",
+      "name": "Prepare LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4.1', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }] }) }}",
+        "options": {}
+      },
+      "id": "a86d004b-29e4-4432-ad28-0ae339875cc4",
+      "name": "Call LLM (JSON mode)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        200
+      ],
+      "notes": "Attach Header Auth credential: Authorization = Bearer <API_KEY>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nlet content = root.choices?.[0]?.message?.content ?? root.message?.content ?? root.content;\nif (typeof content !== 'string') content = JSON.stringify(content ?? {});\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) {\n  const m = content.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Agent did not return JSON: ' + e.message);\n  parsed = JSON.parse(m[0]);\n}\nconst prior = $('Prepare LLM Payload').first().json;\nreturn [{ json: {\n  reportId: prior.reportId || prior.intake?.reportId || parsed.reportId,\n  stage: prior.stage,\n  result: parsed,\n  evidenceEvent: {\n    ts: new Date().toISOString(),\n    stage: prior.stage,\n    reportId: prior.reportId || parsed.reportId\n  }\n}}];"
+      },
+      "id": "b5d2c07b-006d-4cd7-b664-be89784be3aa",
+      "name": "Parse Agent JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "When clicked": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Payload": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (JSON mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (JSON mode)": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fa69360f-1eb5-44fd-88ec-37367fd64b7f",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Specialist agent: discover"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

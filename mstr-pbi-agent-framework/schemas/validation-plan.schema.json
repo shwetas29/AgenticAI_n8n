@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migration.local/schemas/validation-plan.schema.json",
+  "title": "ValidationPlan",
+  "type": "object",
+  "required": ["reportId", "checks", "exitCriteria"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "description", "method", "owner"],
+        "properties": {
+          "id": { "type": "string" },
+          "category": { "enum": ["data", "metrics", "behaviour", "security", "performance"] },
+          "description": { "type": "string" },
+          "method": { "type": "string" },
+          "owner": { "enum": ["automation", "analyst", "security", "business"] },
+          "severity": { "enum": ["blocker", "major", "minor"] },
+          "status": { "enum": ["pending", "pass", "fail", "waived"], "default": "pending" }
+        }
+      }
+    },
+    "exitCriteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "cutoverStage": { "enum": ["pilot", "parallel", "release", "monitor"] }
+  }
+}

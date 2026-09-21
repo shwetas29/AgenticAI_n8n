@@ -1,0 +1,157 @@
+{
+  "name": "03-classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**03-classifier**\nStage: classify\nImports system prompt from framework prompts/03-classifier.md\nExpects item.json with report context.",
+        "height": 140,
+        "width": 480,
+        "color": 5
+      },
+      "id": "e5b85519-720e-4380-af1c-2422699d6948",
+      "name": "Note **03-classifier**\nStage:",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "56feab94-90e0-4150-8836-8b30ae79def3",
+      "name": "When clicked",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mstr-pbi/classify",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "b1f42886-34b6-4917-a580-59ce1649ffb5",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        80
+      ],
+      "webhookId": "aa3d0b57-8bd3-43f2-ac13-9417d19ba9bd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst systemPrompt = \"You are the Classifier agent in a MicroStrategy \\u2192 Power BI migration factory.\\n\\nInput: inventory + assessment + classification-policy.json.\\nOutput: classification JSON only.\\n\\nDispositions:\\n- MIGRATE: rebuild as Power BI report/model following patterns\\n- CONSOLIDATE: fold into an existing semantic model / report family\\n- REDESIGN: intentional UX or model redesign (not lift-and-shift)\\n- RETIRE: no business value / unused / superseded\\n\\nRules:\\n1. Apply policy rules before free-form reasoning; cite which rule fired in rationale.\\n2. requiresHumanApproval = true if any forceReviewFlags match OR disposition is RETIRE/CONSOLIDATE/REDESIGN OR securityRisk >= 40.\\n3. Assign priority using policy priorityMatrix and usage.criticality.\\n4. Suggest wave as W1 (pilot patterns), W2 (standard migrate), W3 (complex/redesign) when not specified.\\n5. Do not invent consolidation targets; use null and ask for catalogue match if unknown.\\n\";\nconst userPrompt = JSON.stringify({\n  stage: \"classify\",\n  instruction: \"Return classification JSON only.\",\n  context: item\n}, null, 2);\nreturn [{ json: { ...item, systemPrompt, userPrompt, stage: \"classify\" } }];"
+      },
+      "id": "315f295e-84c9-49ad-995f-b400b63b3673",
+      "name": "Prepare LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4.1', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }] }) }}",
+        "options": {}
+      },
+      "id": "339accfb-2f6f-43fd-95c0-c5266f34107b",
+      "name": "Call LLM (JSON mode)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        200
+      ],
+      "notes": "Attach Header Auth credential: Authorization = Bearer <API_KEY>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nlet content = root.choices?.[0]?.message?.content ?? root.message?.content ?? root.content;\nif (typeof content !== 'string') content = JSON.stringify(content ?? {});\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) {\n  const m = content.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Agent did not return JSON: ' + e.message);\n  parsed = JSON.parse(m[0]);\n}\nconst prior = $('Prepare LLM Payload').first().json;\nreturn [{ json: {\n  reportId: prior.reportId || prior.intake?.reportId || parsed.reportId,\n  stage: prior.stage,\n  result: parsed,\n  evidenceEvent: {\n    ts: new Date().toISOString(),\n    stage: prior.stage,\n    reportId: prior.reportId || parsed.reportId\n  }\n}}];"
+      },
+      "id": "0d96b4fc-38f2-4d1a-8194-fba4a58bb74a",
+      "name": "Parse Agent JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "When clicked": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Payload": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (JSON mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (JSON mode)": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fdf6fcad-0fb8-44c7-88b4-6c1b1a4a552e",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Specialist agent: classify"
+  },
+  "tags": [
+    {
+      "name": "mstr-pbi-framework"
+    }
+  ],
+  "pinData": {}
+}

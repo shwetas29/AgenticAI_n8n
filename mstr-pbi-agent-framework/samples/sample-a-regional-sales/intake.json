@@ -1,0 +1,51 @@
+{
+  "reportId": "sample-a-regional-sales",
+  "name": "Regional Sales Performance",
+  "type": "grid",
+  "sourceSystem": "microstrategy",
+  "project": "Retail_Sales",
+  "folderPath": "/Public/Sales/Regional",
+  "description": "Crosstab: Region and Product Category on rows, Month on columns; metrics Revenue, Margin %, Units Sold. Margin % threshold shading. Region subtotals and grand total.",
+  "businessOwner": "Sales Performance Lead",
+  "usage": {
+    "monthlyActiveUsers": 120,
+    "executionsLast90Days": 1800,
+    "criticality": "high"
+  },
+  "layout": {
+    "rows": ["Region", "Product Category"],
+    "columns": ["Month"],
+    "visuals": ["crosstab"]
+  },
+  "attributes": ["Region", "Product Category", "Month"],
+  "metrics": [
+    {
+      "name": "Revenue",
+      "expressionHint": "SUM(Sales Amount)",
+      "format": "£#,##0"
+    },
+    {
+      "name": "Margin %",
+      "expressionHint": "Margin / Revenue",
+      "format": "0.0%",
+      "thresholds": [
+        { "op": "gt", "value": 0.2, "color": "green" },
+        { "op": "between", "min": 0.1, "max": 0.2, "color": "amber" },
+        { "op": "lt", "value": 0.1, "color": "red" }
+      ]
+    },
+    {
+      "name": "Units Sold",
+      "expressionHint": "SUM(Units)",
+      "format": "#,##0"
+    }
+  ],
+  "filters": [],
+  "security": { "rlsHints": [], "olsHints": [] },
+  "drillPaths": [],
+  "dependencies": [
+    { "objectType": "metric", "name": "Revenue" },
+    { "objectType": "metric", "name": "Margin %" },
+    { "objectType": "metric", "name": "Units Sold" }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "scoring": {
+    "weights": {
+      "complexity": 0.25,
+      "semanticRisk": 0.25,
+      "securityRisk": 0.3,
+      "uxRisk": 0.1,
+      "automationFitInverse": 0.1
+    }
+  },
+  "laneThresholds": {
+    "automateMaxComposite": 35,
+    "reviewMaxComposite": 70,
+    "handBuildAbove": 70
+  },
+  "forceReviewFlags": [
+    "security_filter",
+    "ols",
+    "topn_within_security",
+    "unknown_expression"
+  ],
+  "forceHandBuildFlags": [],
+  "dispositionRules": [
+    {
+      "when": "usage.criticality == regulatory AND scores.automationFit < 35 AND laneRecommendation == hand_build",
+      "disposition": "REDESIGN",
+      "requiresHumanApproval": true
+    },
+    {
+      "when": "usage.executionsLast90Days == 0 AND usage.criticality == low",
+      "disposition": "RETIRE",
+      "requiresHumanApproval": true
+    },
+    {
+      "when": "matchedPatterns contains PAT-CONSOLIDATION",
+      "disposition": "CONSOLIDATE",
+      "requiresHumanApproval": true
+    },
+    {
+      "when": "laneRecommendation == automate AND securityRisk < 40",
+      "disposition": "MIGRATE",
+      "requiresHumanApproval": false
+    },
+    {
+      "when": "laneRecommendation == hand_build AND scores.automationFit < 40",
+      "disposition": "REDESIGN",
+      "requiresHumanApproval": true
+    },
+    {
+      "when": "default",
+      "disposition": "MIGRATE",
+      "requiresHumanApproval": true
+    }
+  ],
+  "priorityMatrix": {
+    "high_criticality_high_usage": "P0",
+    "high_criticality": "P1",
+    "medium_usage": "P2",
+    "default": "P3"
+  }
+}

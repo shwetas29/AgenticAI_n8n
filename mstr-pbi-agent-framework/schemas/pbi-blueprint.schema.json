@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migration.local/schemas/pbi-blueprint.schema.json",
+  "title": "PbiBlueprint",
+  "type": "object",
+  "required": ["reportId", "semanticModel", "measures", "reportPages", "security", "openQuestions"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "targetPlatform": { "enum": ["powerbi", "fabric"], "default": "fabric" },
+    "semanticModel": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "mode": { "enum": ["import", "directquery", "directlake", "composite"] },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "role": { "enum": ["fact", "dimension", "bridge", "security"] },
+              "grain": { "type": "string" },
+              "keyColumns": { "type": "array", "items": { "type": "string" } },
+              "sourceHint": { "type": "string" }
+            }
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "cardinality": { "type": "string" },
+              "filterDirection": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "measures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "dax": { "type": "string" },
+          "formatString": { "type": "string" },
+          "displayFolder": { "type": "string" },
+          "sourceMetric": { "type": "string" },
+          "patternId": { "type": "string" },
+          "confidence": { "type": "number" }
+        }
+      }
+    },
+    "reportPages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "visuals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "title": { "type": "string" },
+                "fields": { "type": "object" },
+                "interactions": { "type": "array", "items": { "type": "string" } },
+                "conditionalFormatting": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          },
+          "slicers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string" },
+                "syncAcrossPages": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "rlsRoles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "roleName": { "type": "string" },
+              "table": { "type": "string" },
+              "filterDax": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "olsNotes": { "type": "string" },
+        "requiresSecurityReview": { "type": "boolean" }
+      }
+    },
+    "uxNotes": { "type": "string" },
+    "openQuestions": { "type": "array", "items": { "type": "string" } },
+    "buildLane": { "enum": ["automate", "review", "hand_build"] }
+  }
+}
