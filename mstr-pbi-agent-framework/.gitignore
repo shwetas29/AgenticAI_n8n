@@ -3,3 +3,6 @@ out/
 __pycache__/
 *.pyc
 .DS_Store
+node_modules/
+package-lock.json
+config/n8n.local.env

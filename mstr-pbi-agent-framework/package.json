@@ -1,0 +1,22 @@
+{
+  "name": "mstr-pbi-agent-framework",
+  "version": "1.0.0",
+  "description": "n8n AI agent framework for MicroStrategy to Power BI migration",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "n8n": "bash scripts/start_n8n.sh",
+    "n8n:status": "python3 scripts/n8n_connect.py status",
+    "n8n:import": "python3 scripts/n8n_connect.py import",
+    "offline": "python3 scripts/run_offline_pipeline.py --sample all"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "n8n": "^1.82.0"
+  },
+  "private": true
+}

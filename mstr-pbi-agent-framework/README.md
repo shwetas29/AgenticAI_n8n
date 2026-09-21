@@ -36,6 +36,25 @@ mstr-pbi-agent-framework/
 
 ## Quick start (n8n)
 
+### Connect to n8n
+
+See [`docs/n8n-connection.md`](docs/n8n-connection.md).
+
+```bash
+# Local instance (already used in this Cloud Agent environment)
+npm run n8n                 # start
+python3 scripts/n8n_connect.py status
+python3 scripts/n8n_connect.py import
+
+# Or point at your Cloud / self-hosted n8n
+export N8N_BASE_URL=https://YOUR_INSTANCE
+export N8N_API_KEY=...
+python3 scripts/n8n_connect.py status
+python3 scripts/n8n_connect.py import
+```
+
+### Manual import
+
 1. Import workflows from `n8n-workflows/` (order matters — see `docs/ops-guide.md`).
 2. Create credentials: OpenAI (or Azure OpenAI), optional MicroStrategy REST, optional Power BI / Fabric.
 3. Set environment variables from `config/env.example`.
